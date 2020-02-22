@@ -1,0 +1,64 @@
+---
+title: "Problem Set 2"
+author: "Evelyn Delph"
+date: "1/30/2020"
+output:
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(dplyr)
+library(tidyverse)
+options(tinytex.verbose = TRUE)
+```
+
+## Problem 1
+```{r}
+ggplot(cats, aes(x = cats$Bwt)) + geom_histogram(binwidth = .1) +
+  xlab("Bodyweight (kg)") + ylab("Number of cats") + 
+  ggtitle("Cat weights from Fisher (1947)")
+```
+
+## Problem 2
+
+### Part A (Shape of Distribution of Feelings Thermometer)
+```{r}
+# Read in data
+anesRAW = read.csv("anes_pilot_2016.csv", header=TRUE)
+# Drop feeling values over 100 for each candidiate
+valid.values = seq(0,100,1)
+anesCLEANSED = anesRAW %>% 
+  filter(fttrump %in% valid.values) %>%
+  filter(fthrc %in% valid.values) %>%
+  filter(ftsanders %in% valid.values) %>%
+  filter(ftrubio %in% valid.values)
+# Get distributions of interest
+anesCLEANSED %>% 
+  gather(key = caseid, value = 'ft', c('fttrump','fthrc','ftsanders','ftrubio')) %>%
+  ggplot(aes(x = ft)) + geom_histogram(binwidth=1) +
+  facet_wrap(~ caseid, ncol = 2) + 
+  xlab("Thermometer Feeling Distribution Score") +
+  ylab("Frequency of Thermometer Feeling Scores") + ggtitle("Thermometer Feeling Distribution \nof Four Candidiates")
+```
+This chart indicates the thermometer feeling distribution scores of Trump, HRC, Sanders, and Rubio. Both Trump and HRC follow a similar distribution pattern, as well as Sanders and Rubio. HRC seems to have a high count near 150 of a score of 0, as well as Trump. Their low scores are more concentrated up until the 25 feeling thermometer score. They have much smaller and scattered distrubtion until around the 90 mark, where higher feeling thermometer scores hike up to around 50 counts. Essentially, this distribution shows that many individuals both for Trump and HRC have strong polarizing views either for or against the candidiate.
+
+However, a slightly different story is true to Sanders and Rubio. Sanders and Rubio have smaller concentration of low scores (at around 50 compared to 150), and a higher concentration for the center of the distrubtion (around 50 for Sanders and 100 for Rubio). Rubio's high feeling thermometer score's are incredibly small, not making it to the 25 count mark. However, Sander's high scores increase again at around the 90 score mark. For Rubio, it indicates neutraility almost for his feeling thermometer scores, whereas for Sanders you see a gathering at the low, middle, and high scores, indicating an even spread across his scores.
+
+### Part B (Mean Feelings Thermometer to Immigration Policy)
+
+```{r}
+anesCLEANSED %>% 
+  gather(key = Candidate, value = 'ft', c('fttrump','fthrc','ftsanders','ftrubio')) %>%
+  group_by(Candidate,immig_numb) %>%
+  summarise(Mean = mean(ft, na.rm = TRUE)) %>%
+  ggplot(aes(immig_numb)) + geom_point(aes(x = immig_numb,y = Mean)) +
+  facet_wrap(~ Candidate, ncol = 2) +
+  xlab("Immigration Score") + ylab("Mean of Feelings Thermometer") + 
+  ggtitle("Immigration Score over Mean of Feelings Thermometer of Four Candidates")
+```
+This chart shows the mean of the feelings thermometer for each immigration score per candidate. By looking at the charts, you can see for Trump there is a positive correlation between immigration score and mean feelings thermometer. As the immigration score increases (hence a stronger desire to lower the number of immigrants), Trump's likeability increases. So, the lower immigration scores yield to lower FT scores for Trump. Rubio has somewhat of a positive correlation, but it peaks at around 6 and begins to decrease. Generally, higher the FT score yields to more immigration restriction, but the slope of the line isn't as severe as Trump's.
+
+Sanders' chart shows a negative correlation between FT score and immigration. Those who want to increase immigration have a higher FT score, meaning his supporters most likely want to increase immigration. The line follows a relatively negative slope after immigration score of two. HRC's chart seems the most interesting, because although there is a genera negative relationship between immigration and FT score, the FT score peaks at around the immigration score of 3. This might indicate mixed opions regarding immigration from HRC's supporters.
