@@ -1,5 +1,5 @@
 ---
-title: "Problem Set 2"
+title: "Basic GGPlot Visualizations"
 author: "Evelyn Delph"
 date: "1/30/2020"
 output:
