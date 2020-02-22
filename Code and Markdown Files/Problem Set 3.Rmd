@@ -1,0 +1,212 @@
+---
+title: "Problem Set 3-Delph"
+author: "Evelyn Delph"
+date: "2/6/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(NHANES)
+library(lattice)
+library(tidyverse)
+library(broom)
+library(arm)
+library(ggplot2)
+library(patchwork)
+NHANES = NHANES %>% drop_na(BPSysAve)
+female = filter(NHANES,Gender=="female")
+male = filter(NHANES,Gender=="male")
+cb_palette = c("#E69F00", "#56B4E9")
+```
+
+## Section 1: Age
+```{r}
+# Plot BPSysAve over age
+female.agg = aggregate(BPSysAve ~ Age, FUN = mean, data = female)
+male.agg = aggregate(BPSysAve ~ Age, FUN = mean, data = male)
+
+# Aggregate
+NHANES.agg = NHANES %>%
+  group_by(Gender,Age) %>%
+  summarise(Mean = mean(BPSysAve))
+
+bp.age = ggplot(NHANES.agg,aes(x=Age, y=Mean,color=Gender)) +
+  geom_point(alpha=.5,size=.7) + 
+  facet_wrap(~Gender,ncol=1) + 
+  geom_smooth(method="lm",se=FALSE,color="black") +
+  ggtitle("Avg BP over Age") +
+  labs(color = "Gender") + 
+  scale_color_manual(values=cb_palette) +
+  theme(legend.position = "none")
+
+
+# LM fit age over BPSysAve
+female.lm = lm(BPSysAve~Age, data=female.agg)
+male.lm = lm(BPSysAve~Age, data=male.agg)
+female.lm.df = augment(female.lm)
+male.lm.df = augment(male.lm)
+
+# Residuals over age
+female.age.resids = ggplot(female.lm.df,aes(x=Age, y=.resid)) + 
+  geom_point(color="#E69F00",alpha=.5,size=.7) +
+  geom_smooth(method="lm",se=FALSE,color="black") +
+  ylab("Residuals of BP") +
+  ggtitle("Avg Female Residuals over Age")
+
+male.age.resids = ggplot(male.lm.df,aes(x=Age, y=.resid)) + 
+  geom_point(color="#56B4E9",alpha=.5,size=.7) +
+  geom_smooth(method="lm",se=FALSE,color="black") +
+  ylab("Residuals of BP") +
+  ggtitle("Avg Male Residuals over Age")
+
+residuals.age = female.age.resids + male.age.resids + plot_layout(ncol = 1)
+
+bp.age
+residuals.age
+```
+The first explanatory variable of interest is average systolic blood pressure over age. The first step was to analyze the relationship between the two using a scatter plot and drawing a smoother to indicate possible trends in the relationships. At first glance, for both male and female scatter plots, an (almost) linear line seems to accurately capture the relationship between average systolic blood pressure and age. The plots seem to have a similar trendline, except that the female trendline is steeper and has a lower y-intercept. There doesn't seem to be an alarming difference in the values themselves among the genders.
+
+Due to the almost linear fit, the second step was to plot fit the model using lm(). After fitting the model linearly, the predictor for female age over average BP could be derived as ``Female Predicted BPSysAve = 95.13 + .51xAge`` and ``Male Predicted BPSysAve = 105.37 + .36xAge`` for males. The previous observations regarding the slope and intercept of the line are verified based on the regression formulas.
+
+Once the model was fitted, the next step was to plot the residuals over the age variable. The goal of this was to examine the difference from the actual and predicted values. Due to the linear fit and trend, no transformations were made to either variable. The r-squared value for the female residuals is .92 whereas the male residuals is .74. The residual standard deviation for females is 3.178805 and 4.531235 for males. 
+
+This means there's more explained variance in the female residuals compared to the male residuals. However since the r-squared values are high, there is significantly more explained variance compared to unexplained variance in both sets of residuals. The residual standard deviations in both sets of residuals indicate the goodness of fit in the model. Since both residual standard deviations are small, this means there is some similarity between the actual and predicted values. Due to the linear fit, this could indicate that age could be a useful predictor.
+
+## Section 2: Height
+```{r}
+# Drop and aggregate
+NHANES = NHANES %>% drop_na(Height)
+
+female.agg = aggregate(BPSysAve ~ Height, FUN = mean, data = female)
+male.agg = aggregate(BPSysAve ~ Height, FUN = mean, data = male)
+
+NHANES.agg = NHANES %>%
+  group_by(Gender,Height) %>%
+  summarise(Mean = mean(BPSysAve))
+
+# Plot BPSysAve over height
+bp.height = ggplot(NHANES.agg,aes(x=Height, y=Mean,color=Gender)) +
+  geom_point(alpha=.5,size=.7) + 
+  facet_wrap(~Gender,ncol=1) + 
+  geom_smooth(method = "loess", se=FALSE,
+              method.args=list(psi=psi.bisquare,degree=2),
+              span=.7,
+              color="black") +
+  ggtitle("Average BP over Height") +
+  labs(color = "Gender") + 
+  scale_color_manual(values=cb_palette) +
+  theme(legend.position = "none")
+
+# Loess fit over BPSysAve
+female.lo = loess(BPSysAve~Height, data=female.agg,degree=2,
+                  span=.7,family="gaussian")
+male.lo = loess(BPSysAve~Height, data=male.agg, 
+                span=.7,degree=2,family="gaussian")
+female.lo.df = augment(female.lo)
+male.lo.df = augment(male.lo)
+
+# Plot resid over height
+female.height.resids = ggplot(female.lo.df,aes(x=Height,y=.resid)) + 
+  geom_point(alpha=.5,size=.7,color="#E69F00") +
+  ggtitle("Avg Female Residuals over Height") +
+  geom_smooth(method = "loess", se=FALSE,
+              method.args=list(psi=psi.bisquare,degree=2),
+              span=.7,
+              color="#56B4E9")  +
+  ylab("BPSysAve Residuals") +
+  geom_abline(slope=0)
+
+male.height.resids = ggplot(male.lo.df,aes(x=Height,y=.resid)) + 
+  geom_point(alpha=.5,size=.7,color="#56B4E9") +
+  ggtitle("Avg Male Residuals over Height") +
+  geom_smooth(method = "loess", se=FALSE,
+              method.args=list(psi=psi.bisquare,degree=2),
+              span=.7,
+              color="#E69F00")  +
+  ylab("BPSysAve Residuals") +
+  geom_abline(slope=0)
+
+residuals.height = female.height.resids + male.height.resids + plot_layout(ncol = 1)
+
+bp.height
+residuals.height
+```
+The next phase of the analysis is examining the average systolic blood pressure over height. To begin the analysis, a scatter plot was drawn as well as a smoother to capture the trend and relationship. A linear smoother was first used, however it did not capture trend well. Then a rlm() fit was used to fit the model, however it wasn't much different from using lm(). Finally, a loess fit was used, and it seemed to capture the relationship the most. After deciding on the loess fit, the next step was to test various parameters such as span, degree, and family. Degree 2 and the gaussian family gave a fitted residual line with the least variation from a line with a slope of 0. Span of .75 resulted in a smoother line without leaving a significant amount of trend in the residuals.
+
+After plotting the original data, unlike comparing age and average systolic blood pressure, there wasn't much of a strong linear relationship. The correlation between female height and average BP is 0.2751032 whereas for males it is 0.6619894. This seems to make sense because in the residual plots, it appears more of a trend was removed from the males height/BP compared to the females. 
+
+The next statistic examined was r-squared values. For female height and BP, it is 0.2544183 and for males it is 0.07140894. This means roughly 25% and 7% variance can be explained in the model for females and males respectively. The standard deviations for residuals are 10.54 for females and 15.6 for males. This indicates that more variance can be explained for female height and BP compared the male's. Also, the standard error for males shows a wider spread among values.
+
+In order to attempt a better fit, log of heights and squared heights were also plotted. However, this didn't impact the fit of the model. In general, height for BP seems to be more useful for males compared to females.
+
+## Section 3: Weight
+```{r}
+# Drop and aggregate 
+female.agg = aggregate(BPSysAve ~ Weight, FUN = mean, data = female)
+male.agg = aggregate(BPSysAve ~ Weight, FUN = mean, data = male)
+
+NHANES.agg = NHANES %>%
+  group_by(Gender,Weight) %>%
+  summarise(Mean = mean(BPSysAve))
+
+NHANES = NHANES %>% drop_na(Weight)
+
+# Plot BPSysAve over weight
+bp.weight = ggplot(NHANES.agg,aes(x=log(Weight), y=Mean,color=Gender)) +
+  geom_point(alpha=.5,size=.7) + 
+  facet_wrap(~Gender,ncol=1) + 
+  geom_smooth(method="loess",
+              se=FALSE,color="black",span=.75,
+              method.args=list(psi=psi.bisquare,degree=1)) +
+  ggtitle("Avg BP over Log10 Weight") +
+  labs(color = "Gender") + 
+  scale_color_manual(values=cb_palette) +
+  theme(legend.position = "none") +
+  xlab("Weight Log10")
+
+# Loess fit over BPSysAve
+female.lo = loess(BPSysAve~Weight, data=female.agg, 
+                  span=.75,degree=1,family="gaussian")
+male.lo = loess(BPSysAve~Weight, data=male.agg, 
+                span=.75,degree=1,family="gaussian")
+
+female.lo.df = augment(female.lo)
+male.lo.df = augment(male.lo)
+
+# Plot resid over weight
+female.weight.resids = ggplot(female.lo.df,aes(x=Weight,y=.resid)) + 
+  geom_point(alpha=.5,size=.7,color="#E69F00") +
+  ggtitle("Avg Female Residuals over Log10 Weight") +
+  geom_smooth(method="loess",
+              se=FALSE,color="#56B4E9",
+              span=.75,
+              method.args=list(psi=psi.bisquare,degree=1)) +
+  ylab("BPSysAve Residuals") + 
+  xlab("Weight Log10") +
+  scale_x_log10() +
+  geom_abline(slope=0)
+
+male.weight.resids = ggplot(male.lo.df,aes(x=Weight,y=.resid)) + 
+  geom_point(alpha=.5,size=.7,color="#56B4E9") +
+  ggtitle("Avg Male Residuals over Log10 Weight") +
+  geom_smooth(method="loess",
+              se=FALSE,color="#E69F00",
+              span=.75,
+              method.args=list(psi=psi.bisquare,degree=1)) +
+  ylab("BPSysAve Residuals") +
+  xlab("Weight Log10") +
+  scale_x_log10() +
+  geom_abline(slope=0)
+
+
+residuals.weight = female.weight.resids + male.weight.resids + plot_layout(ncol = 1)
+
+bp.weight
+residuals.weight
+```
+The final explanatory variable to analyze was weight. The first step in the analysis was to plot BP and weight by gender. By looking at the graph, the data for each gender was skewed to the right. As a result, the log10 was taken for the weight variable, and it was plotted again as well as a smoother. Similarly to the height variable, lm(), rlm(), and loess() fits were tested. lm() and rlm() did not fit the residuals as well as loess(). lm() and rlm() deviated more from the 0 slope line compared to loess(). So, loess() was used to fit the model. Span, degree, and family parameters were evaluated to improve the fit of the model. Span of .75, degree 1, and family gaussian gave a line that appeared to be the smoothest and least deviant from the slope 0 line. 
+
+The plots indicate that the female residuals have more of a spread compared to the male residuals. The standard errors as a result are 11.83482 and 10.80146 for females and males respectively. The male weights tend to concentrate around 50-100 log10 weight whereas there is more spread for females around the 100 log10 weight mark. The next statistic examined were correlations. For females, the correlation is 0.4968932 and 0.6149222 for males. Again, this can be seen in the graphs as more trends were removed from male residuals compared to female residuals.
+
+The r-squared values are 0.2481186 and 0.3797902 for females and males respectively. The standard deviations in residuals are 11.83482 and 10.80146 for females and males as well. This is essentially saying that there is less explained variance and more spread among the residuals for female log 10 weight and BP. There is more explained variance and less spread among residuals in male weight and BP. Due to the higher correlation compared to height, weight may be a useful explanatory variable for average systolic blood pressure.
